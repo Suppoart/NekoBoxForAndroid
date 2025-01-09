@@ -1,16 +1,11 @@
-name: Nightly Build
+name: CI
 on:
   push:
+    tags-ignore:
+      - 'v*'
     branches:
-      - main*
-    paths:
-      - "app/**"
-      - "buildScript/**"
-      - "buildScr/**"
-      - "libcore/**"
-      - "grade/**"
-      - ".github/workflows/nightly.yml"
-
+      - '*'
+  pull_request:
 jobs:
   libcore:
     name: Native Build (LibCore)
@@ -18,6 +13,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Golang Status
         run: find buildScript libcore/*.sh | xargs cat | sha1sum > golang_status
       - name: Libcore Status
@@ -28,7 +28,7 @@ jobs:
         with:
           path: |
             app/libs/libcore.aar
-          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
+          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}-ci
       - name: Install Golang
         if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
@@ -45,6 +45,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Golang Status
         run: find buildScript libcore/*.sh | xargs cat | sha1sum > golang_status
       - name: Libcore Status
@@ -54,12 +59,12 @@ jobs:
         with:
           path: |
             app/libs/libcore.aar
-          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
+          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}-ci
       - name: Gradle cache
         uses: actions/cache@v4
         with:
           path: ~/.gradle
-          key: gradle-oss-${{ hashFiles('**/*.gradle.kts') }}
+          key: gradle-oss-${{ hashFiles('**/*.gradle.kts') }}-ci
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
@@ -68,21 +73,12 @@ jobs:
           echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
           export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
           ./run init action gradle
-          KEYSTORE_PASS="${{ secrets.KEYSTORE_PASS }}" ALIAS_NAME="${{ secrets.ALIAS_NAME }}" ALIAS_PASS="${{ secrets.ALIAS_PASS}}" ./gradlew app:assembleOssRelease
-
-          # 查找构建后的 APK 文件路径
+          ./gradlew app:assembleOssDebug
           APK=$(find app/build/outputs/apk -name '*arm64-v8a*.apk')
-          APK_DIR=$(dirname $APK)
-          rm $APK_DIR/output-metadata.json
-          # 生成时间戳
-          TIMESTAMP=$(date +'%Y%m%d%H%M%S')
-          # 给 APK 文件加上时间戳前缀
-          NEW_APK="${APK_DIR}/nekobox-${TIMESTAMP}.apk"
-          # 重命名 APK
-          mv "$APK" "$NEW_APK"
-          # 设置新的 APK 路径环境变量
-          echo "APK=$NEW_APK" >> $GITHUB_ENV
-      - uses: actions/upload-artifact@v4
+          APK=$(dirname $APK)
+          echo "APK=$APK" >> $GITHUB_ENV
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: APKs
           path: ${{ env.APK }}
