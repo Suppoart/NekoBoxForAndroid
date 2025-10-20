@@ -4243,6 +4243,8 @@ public class SingBoxOptions {
 
         public String flow;
 
+        public String encryption;
+
         public String network;
 
         public OutboundTLSOptions tls;
@@ -4646,6 +4648,19 @@ public class SingBoxOptions {
 
         public String path;
 
+
+    }
+
+    public static class V2RayTransportOptions_XHTTPOptions extends V2RayTransportOptions {
+
+        public String mode;
+
+        public String host;
+
+        public String path;
+
+        // Advanced field from extra config
+        public Map<String, Object> download;
 
     }
 
