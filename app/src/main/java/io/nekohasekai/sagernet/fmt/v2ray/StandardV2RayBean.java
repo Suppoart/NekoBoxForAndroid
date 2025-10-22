@@ -153,6 +153,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
             }
             case "grpc": {
                 output.writeString(path);
+                break;
             }
             case "httpupgrade": {
                 output.writeString(host);
@@ -223,6 +224,12 @@ public abstract class StandardV2RayBean extends AbstractBean {
             }
             case "grpc": {
                 path = input.readString();
+                if (version < 4) {
+                    // 解决老版本数据的读取问题
+                    input.readString();
+                    input.readString();
+                }
+                break;
             }
             case "httpupgrade": {
                 host = input.readString();
@@ -230,9 +237,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
                 break;
             }
             case "xhttp": {
-                host = input.readString();
-                path = input.readString();
                 if (version >= 4) {
+                    host = input.readString();
+                    path = input.readString();
                     xhttpMode = input.readString();
                     xhttpExtra = input.readString();
                 }
